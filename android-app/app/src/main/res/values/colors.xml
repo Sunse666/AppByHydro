@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 仅供启动窗口使用；进入 Compose 后由 Material 3 令牌接管 -->
+    <color name="splash_background">#FFFDFCFF</color>
+
+    <!-- 启动图标底色。取自设计稿 icon.ico 的留白底色（#F0F0F0），
+         与 ic_launcher_foreground 的青色图形合起来才等于原图。
+         由 tools/gen_launcher_icon.py 算出，改图标时一并改这里。 -->
+    <color name="ic_launcher_background">#F0F0F0</color>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  启动图标（自适应）。三层都由 tools/gen_launcher_icon.py 从 android-app/icon.ico 生成，
+  不要手改那些 PNG。
+
+  - background：设计稿的留白底色，纯色即可（没必要放位图）。
+  - foreground：青色图形，带 alpha；只占画布中间 60dp，四周留 24dp，
+    这样圆形 / 方圆 / 方形三种遮罩都不会切到图形的角。
+  - monochrome：Android 13+ 主题图标用。它只看 alpha，所以必须是"图形不透明、
+    背景透明"的剪影 —— 直接拿 foreground 顶替会变成一整块实心色块。
+
+  改图标：替换 android-app/icon.ico → 跑 tools/gen_launcher_icon.py
+  → 若脚本提示底色变了，同步改 values/colors.xml 的 ic_launcher_background。
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome" />
+</adaptive-icon>

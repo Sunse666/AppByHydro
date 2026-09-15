@@ -1,0 +1,128 @@
+{
+  "_readme": [
+    "改这个文件就能加/改主题，然后重跑 python tools/gen_themes.py。",
+    "id      主题标识，Kotlin 与本地存储用它，定了就别改",
+    "label   界面显示名",
+    "note    一句话说明，会在设置页与预览页显示",
+    "seed    种子色 #RRGGBB。整套配色由它推导，改这一个值即可换色",
+    "variant M3 配色变体：TONALSPOT(默认,最正统) / VIBRANT(高饱和) / ",
+    "        EXPRESSIVE / NEUTRAL(低饱和) / MONOCHROME(纯灰阶) / FIDELITY / ",
+    "        CONTENT / RAINBOW / FRUITSALAD",
+    "contrast 对比度增强，0 = 标准；0.5 = 高对比（无障碍）",
+    "mode     STATIC = 用这里推导的静态色板；FOLLOW_WALLPAPER = 跟随系统壁纸（Android 12+ 动态取色，忽略 seed）"
+  ],
+  "themes": [
+    {
+      "id": "jxau-blue",
+      "label": "江农蓝",
+      "note": "站点主色，默认主题",
+      "seed": "#185FA5",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "lake-cyan",
+      "label": "湖蓝",
+      "note": "比江农蓝更青，清爽",
+      "seed": "#0E7490",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "celadon",
+      "label": "青瓷",
+      "note": "青绿釉色，长时间看不累",
+      "seed": "#0F6E56",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "bamboo",
+      "label": "竹青",
+      "note": "偏黄的绿，与 AC 绿拉开明度",
+      "seed": "#3B6D11",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "amber",
+      "label": "琥珀",
+      "note": "暖橙黄，像台灯光",
+      "seed": "#BA7517",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "coral",
+      "label": "深珊瑚",
+      "note": "暖橙红，醒目",
+      "seed": "#D85A30",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "rosewood",
+      "label": "玫红",
+      "note": "偏深的玫色，沉稳",
+      "seed": "#993556",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "sakura",
+      "label": "樱粉",
+      "note": "浅粉，明亮通透",
+      "seed": "#D4537E",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "indigo",
+      "label": "靛紫",
+      "note": "夜间模式最舒服",
+      "seed": "#534AB7",
+      "variant": "TONALSPOT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "violet-vivid",
+      "label": "紫藤",
+      "note": "高饱和，偏张扬",
+      "seed": "#7C4DFF",
+      "variant": "VIBRANT",
+      "mode": "STATIC"
+    },
+    {
+      "id": "graphite",
+      "label": "石墨",
+      "note": "低饱和灰蓝，最不打扰",
+      "seed": "#44546A",
+      "variant": "NEUTRAL",
+      "mode": "STATIC"
+    },
+    {
+      "id": "monochrome",
+      "label": "单色",
+      "note": "纯灰阶，黑白印刷质感",
+      "seed": "#4A4A4A",
+      "variant": "MONOCHROME",
+      "mode": "STATIC"
+    },
+    {
+      "id": "contrast-blue",
+      "label": "高对比蓝",
+      "note": "对比度增强，视力不佳者友好",
+      "seed": "#185FA5",
+      "variant": "TONALSPOT",
+      "contrast": 0.5,
+      "mode": "STATIC"
+    },
+    {
+      "id": "follow-wallpaper",
+      "label": "跟随壁纸",
+      "note": "Android 12+ 从壁纸取色，最原生的观感",
+      "seed": null,
+      "mode": "FOLLOW_WALLPAPER"
+    }
+  ]
+}

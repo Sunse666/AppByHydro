@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      启动窗口主题。只负责"冷启动到第一帧 Compose"这一小段，
+      真正的配色由 Compose 侧的 ThemeCatalog 决定。
+      用 NoActionBar 是因为导航一律由 Compose 的 Scaffold 提供。
+    -->
+    <style name="Theme.JxauOj" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

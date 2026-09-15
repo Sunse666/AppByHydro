@@ -1,0 +1,74 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/user",
+    "status": 200,
+    "seconds": 1.186
+  },
+  {
+    "method": "GET",
+    "path": "/p",
+    "status": 200,
+    "seconds": 0.995
+  },
+  {
+    "method": "GET",
+    "path": "/p",
+    "status": 200,
+    "seconds": 1.694
+  },
+  {
+    "method": "GET",
+    "path": "/p",
+    "status": 200,
+    "seconds": 1.481
+  },
+  {
+    "method": "GET",
+    "path": "/api/user",
+    "status": 200,
+    "seconds": 1.184
+  },
+  {
+    "method": "GET",
+    "path": "/record",
+    "status": 200,
+    "seconds": 1.111
+  },
+  {
+    "method": "POST",
+    "path": "/p/1/submit",
+    "status": 200,
+    "seconds": 1.008
+  },
+  {
+    "method": "GET",
+    "path": "/p/NOSUCHPROBLEM",
+    "status": 404,
+    "seconds": 1.162
+  },
+  {
+    "method": "GET",
+    "path": "/zzz-not-a-route-xyz",
+    "status": 404,
+    "seconds": 1.076
+  },
+  {
+    "method": "GET",
+    "path": "/record/1",
+    "status": 403,
+    "seconds": 0.999
+  },
+  {
+    "method": "GET",
+    "path": "/zzz-not-a-route-xyz",
+    "status": 404,
+    "seconds": 1.121
+  },
+  {
+    "method": "GET",
+    "path": "/zzz-not-a-route-xyz",
+    "status": 404,
+    "seconds": 1.009
+  }
+]
