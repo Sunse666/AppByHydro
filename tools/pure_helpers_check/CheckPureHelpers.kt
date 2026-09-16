@@ -378,6 +378,55 @@ fun main() {
     phase("起止都缺 → 已结束", null, null, ContestPhase.ENDED)
     phase("时间串不合法 → 已结束", "xx", "yy", ContestPhase.ENDED)
 
+    // ---------- F2. 个人截止（方案 C，对齐 isOngoing） ----------
+    println("\n[F2] Phase.personalEndAtIso + of(personalEndAtIso)")
+    // NOW = 2026-09-14T12:00:00Z（见上方 NOW 常量定义处约定）
+    // ① 合成：tsdoc.endAt 优先；无 endAt 用 startAt+duration（小时）；两者都有取更早
+    check(
+        "F2 个人截止：有 tsdoc.endAt 直接用",
+        Phase.personalEndAtIso("2026-09-14T10:00:00Z", "2026-09-14T12:30:00Z", 5),
+        "2026-09-14T12:30:00Z",
+    )
+    check(
+        "F2 个人截止：无 endAt 用 startAt+duration(小时)",
+        Phase.personalEndAtIso("2026-09-14T10:00:00Z", null, 2),
+        "2026-09-14T12:00:00Z",
+    )
+    check(
+        "F2 个人截止：两者都有限更早（endAt 早于 startAt+duration）",
+        Phase.personalEndAtIso("2026-09-14T10:00:00Z", "2026-09-14T11:30:00Z", 5),
+        "2026-09-14T11:30:00Z",
+    )
+    check(
+        "F2 个人截止：duration=0 只看 endAt（作业无 duration 字段）",
+        Phase.personalEndAtIso("2026-09-14T10:00:00Z", "2026-09-14T11:45:00Z", 0),
+        "2026-09-14T11:45:00Z",
+    )
+    check("F2 个人截止：tsdoc 缺失 → null", Phase.personalEndAtIso(null, null, 3), null)
+    check("F2 个人截止：startAt 解析失败且无 endAt → null", Phase.personalEndAtIso("xx", null, 3), null)
+    // ② 阶段判定：个人截止先于全局窗口生效
+    // 全局窗口 [11:00, 14:00)，NOW=12:00 → 全局视角进行中
+    check(
+        "F2 徽标：个人截止已过 → ENDED（全局还在窗口内）",
+        Phase.of("2026-09-14T11:00:00Z", "2026-09-14T14:00:00Z", NOW, "2026-09-14T11:30:00Z"),
+        ContestPhase.ENDED,
+    )
+    check(
+        "F2 徽标：个人截止未到 → 仍 RUNNING",
+        Phase.of("2026-09-14T11:00:00Z", "2026-09-14T14:00:00Z", NOW, "2026-09-14T12:30:00Z"),
+        ContestPhase.RUNNING,
+    )
+    check(
+        "F2 徽标：有效终点取全局与个人更早（个人早 → 按 ENDED）",
+        Phase.of("2026-09-14T11:00:00Z", "2026-09-14T14:00:00Z", NOW, "2026-09-14T11:00:00Z"),
+        ContestPhase.ENDED,
+    )
+    check(
+        "F2 徽标：无个人截止 → 行为与旧版一致",
+        Phase.of("2026-09-14T11:00:00Z", "2026-09-14T14:00:00Z", NOW, null),
+        ContestPhase.RUNNING,
+    )
+
     // ---------- G. 时长文案 ----------
     println("\n[G] Phase.durationLabel")
     dur("30 分钟", "2026-09-14T10:00:00Z", "2026-09-14T10:30:00Z", "30 分钟")

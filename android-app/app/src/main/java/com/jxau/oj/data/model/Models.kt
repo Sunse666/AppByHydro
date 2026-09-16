@@ -244,13 +244,43 @@ enum class ContestPhase {
 /** 竞赛与作业共用的阶段推算逻辑。时间解析失败时宁可保守（当作已结束），不抛异常。 */
 object Phase {
 
-    fun of(beginAtIso: String?, endAtIso: String?, now: Instant = Instant.now()): ContestPhase {
+    fun of(
+        beginAtIso: String?,
+        endAtIso: String?,
+        now: Instant = Instant.now(),
+        /**
+         * 个人截止（可选，来自 tsdoc）。Hydro `isOngoing` 的个人约束先于全局窗口生效：
+         * 个人截止一过，即使全局还在 [beginAt, endAt) 内也不算进行中。
+         * null = 无个人约束（游客/未报名/站点没下发），行为与旧版一致。
+         */
+        personalEndAtIso: String? = null,
+    ): ContestPhase {
         val begin = parseIso(beginAtIso)
-        val end = parseIso(endAtIso)
+        // 有效终点 = 全局 endAt 与个人截止中更早者；都缺则视为无终点
+        val end = listOfNotNull(parseIso(endAtIso), parseIso(personalEndAtIso)).minOrNull()
         if (begin != null && now.isBefore(begin)) return ContestPhase.UPCOMING
         if (end != null && now.isAfter(end)) return ContestPhase.ENDED
         // 起止缺一或解析失败：有起点且已过 → 进行中；否则按已结束处理（不假装"进行中"误导用户）
         return if (begin != null) ContestPhase.RUNNING else ContestPhase.ENDED
+    }
+
+    /**
+     * 合成个人截止时刻（ISO 字符串），依据 Hydro 源码 `model/contest.ts` 的
+     * `isOngoing`【2026-09-16 核对】：两重个人约束任一命中即不算进行中 ——
+     * ① `tsdoc.endAt` 已过；② `tsdoc.startAt + tdoc.duration` 已超。
+     * 因此个人截止取两者**更早**者。⚠️ `duration` 单位是**小时**（源码
+     * `tdoc.duration * Time.hour`），此前「单位未明确」的注释就此销账。
+     * tsdoc 缺失或字段解析失败返回 null，阶段退回只看全局起止。
+     */
+    fun personalEndAtIso(tsStartAtIso: String?, tsEndAtIso: String?, durationHours: Long): String? {
+        val tsEnd = parseIso(tsEndAtIso)
+        val tsStart = parseIso(tsStartAtIso)
+        val durationEnd = if (tsStart != null && durationHours > 0) {
+            tsStart.plus(Duration.ofHours(durationHours))
+        } else {
+            null
+        }
+        return listOfNotNull(tsEnd, durationEnd).minOrNull()?.toString()
     }
 
     fun parseIso(iso: String?): Instant? {
@@ -295,9 +325,15 @@ data class Contest(
     val endAt: String?,
     val attend: Int,
     val rated: Boolean,
+    /**
+     * 个人截止（详情页且有 tsdoc 时才有值；列表响应没有 tsdoc，恒为 null）。
+     * 阶段判定用它对齐服务端 `isOngoing` —— 否则「个人限时已耗尽但全局没到
+     * endAt」的竞赛会被徽标误标为进行中，提交才撞 ContestNotLiveError。
+     */
+    val myEndAt: String? = null,
 ) {
     val phase: ContestPhase
-        get() = Phase.of(beginAt, endAt)
+        get() = Phase.of(beginAt, endAt, personalEndAtIso = myEndAt)
 
     /** 时长标签。`duration` 字段单位未采到样本，这里用起止差值算，比猜单位可靠。 */
     val durationLabel: String?
@@ -337,9 +373,15 @@ data class Homework(
     val endAt: String?,
     val penaltySince: String?,
     val attend: Int,
+    /**
+     * 个人截止（详情页且有 tsdoc 时才有值）。⚠️ `penaltySince` **不参与**阶段判定 ——
+     * Hydro 源码里 `isOngoing` 是规则无关的，作业在罚时阶段（penaltySince 之后、
+     * endAt 之前）仍算进行中、带 tid 的提交仍被受理，App 徽标必须与之一致。
+     */
+    val myEndAt: String? = null,
 ) {
     val phase: ContestPhase
-        get() = Phase.of(beginAt, endAt)
+        get() = Phase.of(beginAt, endAt, personalEndAtIso = myEndAt)
 }
 
 /** 作业详情。 */

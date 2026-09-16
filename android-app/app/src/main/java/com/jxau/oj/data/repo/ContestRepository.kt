@@ -36,12 +36,16 @@ class ContestRepository(private val client: HydroClient) {
             .mapJson { ContestListDto.from(it) }
             .map { dto -> dto.contests.map(Mappers::toContest) }
 
-    /** 竞赛详情。响应里只有 `{tdoc}`，正文与题目列表都在 tdoc 上。 */
+    /** 竞赛详情。游客态响应只有 `{tdoc}`；已报名时另有 `tsdoc`（个人截止用它合成）。 */
     suspend fun contest(tid: String): HydroResult<ContestDetail> =
         client.get("/contest/$tid")
             .mapJson { ContestDetailDto.from(it) }
             .map { dto ->
-                Mappers.toContestDetail(dto.tdoc ?: error("tdoc 缺失"))
+                Mappers.toContestDetail(
+                    dto.tdoc ?: error("tdoc 缺失"),
+                    dto.tsStartAt,
+                    dto.tsEndAt,
+                )
             }
 
     /**
@@ -86,6 +90,8 @@ class ContestRepository(private val client: HydroClient) {
                     dto.tdoc ?: error("tdoc 缺失"),
                     dto.claimed,
                     dto.problems,
+                    dto.tsStartAt,
+                    dto.tsEndAt,
                 )
             }
 

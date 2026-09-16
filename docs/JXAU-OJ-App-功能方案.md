@@ -2,7 +2,7 @@
 
 > 目标站点：`https://oj.wbhtqlorz.cv`（Jxau OJ）
 > 站点形态：Hydro `4.58.4` 默认部署，**未做任何改造**，App 全程基于其现有接口交互
-> 文档版本：v1.18 ｜ 2026-09-15 ｜ 状态：实施中
+> 文档版本：v1.19 ｜ 2026-09-16 ｜ 状态：实施中
 > 一期范围：核心做题闭环（登录 → 题库 → 题目 → 编辑 → 提交 → 评测结果）
 > **风格约束：原生 Android（Material 3），不复刻网页 UI —— 见 5.0**
 > v1.1 变更：新增 5.0 视觉风格总纲、5.5 Material 3 组件规范、10.2 风格验收；同步调整 6.1／6.2／7.1／9／11
@@ -31,6 +31,24 @@
 > v1.15 变更：**换正式图标 + 打正式包（release）**。① **启动图标改用设计稿 `android-app/icon.ico`** —— 交付 `tools/gen_launcher_icon.py`，把 48×48 的「青色图形压在白底上」拆成**前景层（带 alpha 的图形）+ 底色层（`@color/ic_launcher_background` = `#F0F0F0`）**：这是自适应图标的硬要求，原图是不透明白底，直接当前景会让 Android 13+ 的**单色层变成一整块实心方块**（单色层只看 alpha，不看颜色）。拆分做法是「逐像素当作 white 与 cyan 的线性混合」最小二乘解出图形覆盖度，脚本末尾**断言把前景层叠回底色后与源图逐像素一致**（实测最大通道偏差 1）。放大走 NEAREST（48→240 是整数 5 倍，像素画不能插值），其余密度由 xxxhdpi 主图降采样。图形只占画布中间 **60dp** 而不是满铺 72dp —— 设计稿本身几乎没有留白，满铺会让顶栏两端正好落在圆形遮罩的切角上；60dp 时图形对角线刚好贴着 66dp 安全圆，**圆形／方圆／方形三种遮罩都不缺角**（真机桌面已确认）。旧的两支矢量占位 `res/drawable/ic_launcher_*.xml` 一并删除。② **配置正式签名** —— `keytool` 生成 `android-app/keystore/jxau-oj-release.jks`（RSA 2048／30 年）+ `keystore.properties` 存凭据，`app/build.gradle.kts` 新增 `signingConfigs.release`。⚠️ **这两个文件必须一起备份**，丢了就再也无法覆盖升级已装出去的 App。③ **修掉两个离线构建阻断点**：Kotlin DSL 里 `java.util.Properties` 会被 Gradle 的 `java` 扩展遮住，必须显式 `import`；`assembleRelease` 会卡在 `lintVitalAnalyzeRelease`（离线缓存里没有 `com.android.tools.lint:lint-gradle`，与代码无关），用 `android { lint { checkReleaseBuilds = false } }` 跳过（`:app:lint` 仍可单独跑）。**R8 故意没开**（显式 `isMinifyEnabled = false` 并写明理由）—— 这个工程有过「构建成功却装着坏字节码」的事故，混淆/裁剪造成的破坏同样是**运行期才暴露**的；要开得先补 keep 规则（尤其 `res/raw/cascadia_mono_notice.txt` 只被界面文案提及、不被代码引用，`shrinkResources` 会把它删掉），再做一遍完整真机回归。④ **清掉 App 里的测试草稿并换装正式包**：release 包与 debug 包签名不同，必须卸载重装（实测 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`）；装前备份 prefs，装后用 root 回写**清理过的** prefs —— 删掉测试时敲进去的 `draft_154("ac")` 等 6 条草稿，**保留用户自己写的 `draft_2` 题解**、设置与 Cookie（含属主／权限／SELinux 上下文）。⑤ **验收**：release 包 `debuggable=false`、`apksigner` v2 验签通过、Kotlin 编译零 `e:` 零 `w:`、字节码 ABI 体检 564 class / 4 接口全绿、离线自检 412 项仍全绿；真机（MuMu / Android 12）桌面图标已是新图、冷启动无崩溃、题库加载正常、题面 Markdown 渲染正常、进 #2 编辑器**正确恢复了 `draft_2`**。详见附录 F。
 > v1.16 变更：**内置字体扩充到 6 款（用户点名 JetBrains Mono）**。新增 4 款可合法再分发的编程字体打包进 `res/font/`（9 个 TTF 合计 2.41 MB，逐档 md5 回执校验）：**Cascadia Code**（与 Mono 同源的连字版）、**JetBrains Mono**（三档字重）、**Fira Code**（三档字重）、**Source Code Pro**（常规/粗体）。选型硬标准：OFL 许可 + name 表含许可文本 + 编程符号覆盖齐全；**排除 Inconsolata**（仅 296 字形、13 个编程符号缺 10、name 表无许可文本）与 Droid Sans Mono（系统已自带）。OFL 正文逐字取自官方文本随包分发（4 份 `res/raw/*_notice.txt`，`tools/gen_font_notices.py` 幂等生成并自校验「正文与官方文本逐字一致」）。`EditorFonts.kt` 新增 `credit` 字段与 `BUNDLED_EDITOR_FONTS`；设置页「关于」段许可文案改为**按清单列举**（原「内置字体 Cascadia Mono…」的单一表述在 4 款后即为假话）。静态字重**不传 `variationSettings`**（那是可变字体才需要的）；自检 stub `R.kt` 同步补 9 个字段。自检新增 **V 组**（清单一致性）与 run.sh 的 **font assets 段**（清单点名的许可文件必须存在、`res/raw` 的声明必须被清单引用、未被引用的 ttf 报警），探针扩到 **10 种变异全部 CAUGHT**，总计 **447 项全绿**。本轮首次增量编译 release 失败（`compileReleaseKotlin` 无源码级报错），二分替换/还原多轮未锁定触发点，`clean` 全量构建后连续多次成功 —— 与 E.9.2 的「坏增量产物」同类，clean 修复。详见附录 G。
 > v1.17 变更：**修复「普通用户看不了已参加竞赛的题目」**（用户实测报告，MuMu 100% 复现）。**根因**：竞赛题在 Hydro 里是**隐藏题**（`hidden=true`），普通用户无全局「查看隐藏题目」权限；实测契约 —— `GET /p/154` → **403 `PermissionError: View hidden problems`**，而 `GET /p/154?tid=<竞赛id>` → **200**（参赛者身份按 `tid` 授权解锁）。App 的题目跳转恰好漏传竞赛上下文。**修复**：路由 `problem/{docId}` / `editor/{docId}` 增加可选 `tid` 参数，竞赛/作业详情页跳转时携带；`ProblemRepository.detail` 与 `SubmissionRepository.submit/pretest` 均带 `tid`（**编辑器与提交的上下文一致，成绩才计入竞赛**）。**顺带把技术错误翻成人话**：新增 `data/net/ErrorMessages.kt`（`humanize(name, message)`，按错误 `name` 分类，未识别的原样透传**绝不编假话**；空文案兜底「请求失败」），`HydroResult.Failure` 增加 `friendly` 属性（`message` 保留站点原文供诊断），`errorText()` 改走 `friendly`，全部 UI 的 Failure 分支切换。自检新增 **W 组 18 项**（含「未知 name 原样透传」「译文不留 `{0}` 占位符与英文原句」等不变量）。真机复走：竞赛列表 → Week3 → A「拆机螺丝」题面正常渲染、编辑器正常打开，权限错误消失（提交链路同参数，未真提交以免留下竞赛痕迹）。详见附录 H。
+> v1.19 变更：**竞赛/作业降级练习提交（方案 A）**。修复「进行中或已结束的作业/竞赛不能交代码」：
+> **根因**（Hydro 源码 `packages/hydrooj/src/handler/problem.ts` 定论）——提交路径 `ProblemSubmitHandler.prepare` 首行
+> `if (tid && !contest.isOngoing(...)) throw new ContestNotLiveError(...)`：**带 tid 的提交只在竞赛进行中受理**；
+> `isOngoing` 是三重时间约束（全局起止、个人截止 `tsdoc.endAt`、个人限时 `duration`+`startAt`）。网页能交是因为从题目页
+> 发起的是**不带 tid 的普通练习提交**（不入榜，不触发该检查）。App 自 v1.17 起竞赛/作业全链路恒带 tid → 已结束必撞此错；
+> 「进行中」也报错则是 App 徽标只看全局起止、不知道个人限时与个体截止。
+> **修复**：`EditorViewModel` 的提交与自测在收到 `ContestNotLiveError`/`HomeworkNotLiveError` 且确实带了 tid 时，
+> **降级为不带 tid 的练习请求重试一次**（前次请求被业务层拒绝、未产生记录，不违反「提交不自动重试」），成功后弹
+> snackbar「竞赛/作业不在进行中，本次已按练习提交（不计入成绩）」；降级后仍失败则原样展示错误（含隐藏题无 tid
+> 时的权限错误）。不改 GET 链路（题面仍带 tid，是隐藏题唯一放行通道）。
+> **配套方案 C（阶段徽标对齐 isOngoing）**：源码核对修正两个旧推断 —— ① `duration` 单位是**小时**（`tdoc.duration * Time.hour`），
+> 「单位未明确」注释销账；② **`penaltySince` 不参与 `isOngoing`**（规则无关的全局函数），作业在罚时阶段仍算进行中、
+> 带 tid 提交仍被受理。因此阶段修正只来自 `tsdoc` 的两重个人约束：`Phase.personalEndAtIso` 取
+> `tsdoc.endAt` 与 `tsdoc.startAt + duration小时` 中**更早**者合成个人截止；`Phase.of` 新增可选
+> `personalEndAtIso` 参数（有效终点 = 全局 endAt 与个人截止取更早）。`ContestDetailDto`/`HomeworkDetailDto`
+> 新增 `tsStartAt/tsEndAt`（游客态实测无 tsdoc，安全回落），Mapper 合成 `myEndAt` 下传 `Contest`/`Homework`
+> 模型，详情页徽标自动对齐服务端视角；列表响应无 tsdoc，徽标仍按全局起止（已知限制）。
+> 自检新增 F2 组 10 项（个人截止合成 + 徽标判定），总 **507 项全绿**。
 > v1.18 变更：**编辑器二期两件套落地 + 头像兜底**。① **撤销/重做（C4-1）**：纯类 `CodeUndoStack`（快照栈，上限 100 条；打字与退格各按「光标连续」合并成一条，粘贴等多字符插入独立成条；**退格合并判据取 `selection`，与成对删除同源**，不用 diff 下标）；`CodeEditorHandle` 暴露 `undo()/redo()` 与 `canUndo/canRedo`（Compose state，按钮态随栈自动启停）；EditorScreen 底栏左下两按钮 + 硬件键 Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z。自检 Y 组 18 项，**首跑抓出退格合并差一 bug**（合并条件应 `lastCaret-1`）已修。② **查找替换（C4-2）**：纯类 `CodeFindReplace`（大小写敏感开关；`findAll` 不重叠前向；`replaceOne/replaceAll` 返回新文本与光标），查找条 UI 挂顶栏下方（查找框 / Aa 开关 / 上一个·下一个 / 展开替换 / 全部替换 / 关闭），匹配高亮画在 **Canvas 装饰层**（不碰文本管线，符合高亮既定约束；当前匹配加重底色）。自检 Z 组 20 项。③ **头像兜底**：`UserAvatar` 在真实头像加载失败时回落**用户名首字母 + 容器色色块**（v1.14 遗留的产品决策项），排行榜真机确认 gravatar 不可达的三位用户不再空白。**回归**：自检扩到 **28 组 497 项全绿**（412→497）；探针 10 变异全 CAUGHT；`abi_check` 590 class 全绿；assembleDebug/assembleRelease 双绿；debug→release 覆盖安装成功（**签名统一后首次双向验证**）；真机（#5，release 包）逐项验证 undo/redo/按钮态/查找高亮/全部替换/替换可撤销全过（**测试姿势坑：IconButton 热区≠dump 文本坐标，须按截图放大定位**）。详见附录 I。
 
 ---

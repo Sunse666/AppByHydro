@@ -88,6 +88,7 @@ fun EditorScreen(
     onSubmitted: (String) -> Unit,
     onErrorShown: () -> Unit,
     onDraftRestoredShown: () -> Unit,
+    onPracticeNoticeShown: () -> Unit,
     onToggleStatement: () -> Unit,
     onExpandStatement: () -> Unit,
     onCollapseStatement: () -> Unit,
@@ -137,6 +138,13 @@ fun EditorScreen(
         if (state.draftRestored) {
             snackbarHost.showSnackbar("已恢复上次未提交的代码")
             onDraftRestoredShown()
+        }
+    }
+    // 降级练习提交（竞赛/作业不在进行中）成功后告知语义，避免用户误以为成绩已计入
+    LaunchedEffect(state.practiceNotice) {
+        if (state.practiceNotice) {
+            snackbarHost.showSnackbar("竞赛/作业不在进行中，本次已按练习提交（不计入成绩）")
+            onPracticeNoticeShown()
         }
     }
 

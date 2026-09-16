@@ -42,6 +42,12 @@ data class EditorUiState(
     val pretestError: String? = null,
     /** 最近一次自测的结果。null = 还没测过。 */
     val pretestResult: PretestResult? = null,
+    // ---- 竞赛/作业降级提交 ----
+    /**
+     * 提交/自测撞上 ContestNotLiveError 后已降级为练习模式（不带 tid）重发成功。
+     * UI 弹一次 snackbar 告知「不计入成绩」，然后消费掉。
+     */
+    val practiceNotice: Boolean = false,
 )
 
 class EditorViewModel(
@@ -55,6 +61,9 @@ class EditorViewModel(
      * 三个地方都依赖它：① 拉题面（竞赛题是 hidden 题，不带 tid 得 403）；
      * ② 提交、③ 自测 —— 站点据此把这条记录归到竞赛名下，缺了就"提交成功但不计分"，
      * 而提交**不会重试**，用户通常到赛后看榜单才发现，属于最坏的一类静默失效。
+     *
+     * 例外：竞赛/作业不在进行中时，带 tid 的提交会被服务端 ContestNotLiveError
+     * 直接拒绝（见 [submit] 里的降级逻辑）—— 此时按练习提交重试一次并告知用户。
      */
     private val tid: String = "",
 ) : ViewModel() {
@@ -180,21 +189,39 @@ class EditorViewModel(
         }
         _state.update { it.copy(pretestBusy = true, pretestError = null, pretestResult = null) }
         pretestJob = viewModelScope.launch {
-            val rid = when (val res = submissionRepository.pretest(
+            val first = submissionRepository.pretest(
                 docId, snapshot.selectedLang, snapshot.code, snapshot.testInputs, contextTid(),
-            )) {
-                is HydroResult.Success -> res.data
+            )
+            // 与正式提交同一处硬规则（ContestNotLiveError / HomeworkNotLiveError）：
+            // 竞赛/作业不在进行中时带 tid 的请求一律被拒。降级为练习自测重试一次。
+            var downgraded = false
+            val outcome = if (first is HydroResult.Failure &&
+                first.name != null && first.name in NOT_LIVE_ERROR_NAMES &&
+                contextTid() != null
+            ) {
+                downgraded = true
+                submissionRepository.pretest(
+                    docId, snapshot.selectedLang, snapshot.code, snapshot.testInputs, null,
+                )
+            } else {
+                first
+            }
+            val rid = when (outcome) {
+                is HydroResult.Success -> {
+                    if (downgraded) _state.update { it.copy(practiceNotice = true) }
+                    outcome.data
+                }
                 is HydroResult.NeedLogin -> {
                     _state.update { it.copy(pretestBusy = false, pretestError = "登录状态已失效，请重新登录") }
                     return@launch
                 }
                 is HydroResult.Failure -> {
-                    _state.update { it.copy(pretestBusy = false, pretestError = res.friendly) }
+                    _state.update { it.copy(pretestBusy = false, pretestError = outcome.friendly) }
                     return@launch
                 }
                 is HydroResult.TransportError -> {
                     // 与正式提交同理：自测请求不自动重试
-                    _state.update { it.copy(pretestBusy = false, pretestError = res.message) }
+                    _state.update { it.copy(pretestBusy = false, pretestError = outcome.message) }
                     return@launch
                 }
             }
@@ -244,9 +271,26 @@ class EditorViewModel(
 
         _state.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
-            when (val res = submissionRepository.submit(docId, snapshot.selectedLang, snapshot.code, contextTid())) {
+            val first = submissionRepository.submit(docId, snapshot.selectedLang, snapshot.code, contextTid())
+            // Hydro 提交路径的硬规则（packages/hydrooj/src/handler/problem.ts）：
+            // `if (tid && !contest.isOngoing(...)) throw new ContestNotLiveError(...)` ——
+            // 带 tid 的提交只在竞赛进行中受理。已结束/未开始时网页还能交，是因为
+            // 从题目页发起的提交不带 tid（服务端按普通练习计，不入榜）。
+            // 这里对齐网页：确实带了 tid 又撞上该错时，降级为练习提交重试一次。
+            // 注意这不违反「提交不自动重试」：前一次请求被服务端在业务层拒绝，没有产生任何记录。
+            var downgraded = false
+            val outcome = if (first is HydroResult.Failure &&
+                first.name != null && first.name in NOT_LIVE_ERROR_NAMES &&
+                contextTid() != null
+            ) {
+                downgraded = true
+                submissionRepository.submit(docId, snapshot.selectedLang, snapshot.code, null)
+            } else {
+                first
+            }
+            when (outcome) {
                 is HydroResult.Success -> {
-                    if (res.data.isBlank()) {
+                    if (outcome.data.isBlank()) {
                         // 没拿到 rid：多半是提交接口的契约与预期不符，而不是用户操作失败。
                         // 这种情况必须说清楚，否则会被误读成"站点挂了"。
                         _state.update {
@@ -257,16 +301,22 @@ class EditorViewModel(
                             )
                         }
                     } else {
-                        _state.update { it.copy(submitting = false, submittedRid = res.data) }
+                        _state.update {
+                            it.copy(
+                                submitting = false,
+                                submittedRid = outcome.data,
+                                practiceNotice = if (downgraded) true else it.practiceNotice,
+                            )
+                        }
                     }
                 }
                 is HydroResult.NeedLogin ->
                     _state.update { it.copy(submitting = false, needLogin = true, error = "登录状态已失效，请重新登录") }
                 is HydroResult.Failure ->
-                    _state.update { it.copy(submitting = false, error = res.friendly) }
+                    _state.update { it.copy(submitting = false, error = outcome.friendly) }
                 is HydroResult.TransportError ->
                     // 刻意不自动重试：提交类请求重试会造成重复提交
-                    _state.update { it.copy(submitting = false, error = res.message) }
+                    _state.update { it.copy(submitting = false, error = outcome.message) }
             }
         }
     }
@@ -287,6 +337,10 @@ class EditorViewModel(
         _state.update { it.copy(pretestError = null) }
     }
 
+    fun consumePracticeNotice() {
+        _state.update { it.copy(practiceNotice = false) }
+    }
+
     /** 空串 = 无竞赛上下文；仓库层用 null 表示"不带这个参数"。 */
     private fun contextTid(): String? = tid.takeIf { it.isNotBlank() }
 
@@ -297,6 +351,13 @@ class EditorViewModel(
         /** 与正式评测一致的轮询退避（毫秒），封顶 90 秒。 */
         val POLL_DELIVERY_MS = longArrayOf(800, 1200, 1600, 2000, 2500, 3000, 4000, 5000)
         const val POLL_DEADLINE_MS = 90_000L
+
+        /**
+         * 触发「降级为练习提交」的服务端错误名。
+         * 竞赛与作业共用同一检查（Hydro 作业是 contest 的 homework rule 变体），
+         * 但保险起见两个名字都收。
+         */
+        val NOT_LIVE_ERROR_NAMES = setOf("ContestNotLiveError", "HomeworkNotLiveError")
     }
 }
 

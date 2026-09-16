@@ -29,7 +29,12 @@ data class ContestTdocDto(
     val rule: String = "",
     val beginAt: String? = null,
     val endAt: String? = null,
-    val durationMs: Long = 0,
+    /**
+     * 竞赛时长。⚠️ 单位是**小时** —— Hydro 源码 `isOngoing` 用
+     * `tdoc.duration * Time.hour` 折算【2026-09-16 源码核对】，
+     * 此前「单位未明确」的注释就此销账。个人截止 = tsdoc.startAt + duration 小时。
+     */
+    val durationHours: Long = 0,
     val attend: Int = 0,
     val rated: Boolean = false,
     val content: String? = null,
@@ -49,9 +54,7 @@ data class ContestTdocDto(
             rule = o.str("rule"),
             beginAt = o.strOrNull("beginAt"),
             endAt = o.strOrNull("endAt"),
-            // duration 的单位实测样本未明确（秒或毫秒），DTO 层原样保留数字，
-            // 由 Mapper 按与 begin/end 的差值交叉校验后决定展示值
-            durationMs = o.long("duration"),
+            durationHours = o.long("duration"),
             attend = o.int("attend"),
             rated = o.bool("rated"),
             content = o.strOrNull("content"),
@@ -79,10 +82,18 @@ data class ContestListDto(
 /** `GET /contest/:tid` 的响应。 */
 data class ContestDetailDto(
     val tdoc: ContestTdocDto? = null,
+    /**
+     * tsdoc 的 startAt/endAt（已报名的登录用户才下发；游客态实测只有 `{tdoc}`）。
+     * 原样透传给模型层合成个人截止 —— 阶段徽标据此对齐服务端 `isOngoing`。
+     */
+    val tsStartAt: String? = null,
+    val tsEndAt: String? = null,
 ) {
     companion object {
         fun from(o: JsonObject) = ContestDetailDto(
             tdoc = o.obj("tdoc")?.let { ContestTdocDto.from(it) },
+            tsStartAt = o.obj("tsdoc")?.strOrNull("startAt"),
+            tsEndAt = o.obj("tsdoc")?.strOrNull("endAt"),
         )
     }
 }
@@ -181,6 +192,9 @@ data class HomeworkDetailDto(
     val tdoc: HomeworkTdocDto? = null,
     /** `tsdoc.attend`。tsdoc 缺失（从未操作过）时为 null。 */
     val claimed: Boolean? = null,
+    /** tsdoc 的 startAt/endAt（原样透传，模型层合成个人截止；作业 tdoc 无 duration）。 */
+    val tsStartAt: String? = null,
+    val tsEndAt: String? = null,
     val problems: Map<Int, String> = emptyMap(),
 ) {
     companion object {
@@ -203,6 +217,8 @@ data class HomeworkDetailDto(
                 claimed = o.obj("tsdoc")?.let { ts ->
                     ts.boolOrNull("attend") ?: (ts.int("attend") == 1)
                 },
+                tsStartAt = o.obj("tsdoc")?.strOrNull("startAt"),
+                tsEndAt = o.obj("tsdoc")?.strOrNull("endAt"),
                 problems = titles,
             )
         }

@@ -11,6 +11,7 @@ import com.jxau.oj.data.model.ContestDetail
 import com.jxau.oj.data.model.Homework
 import com.jxau.oj.data.model.HomeworkDetail
 import com.jxau.oj.data.model.LabeledProblem
+import com.jxau.oj.data.model.Phase
 import com.jxau.oj.data.model.ProblemDetail
 import com.jxau.oj.data.model.ProblemSummary
 import com.jxau.oj.data.model.RankedUser
@@ -185,8 +186,26 @@ object Mappers {
         rated = dto.rated,
     )
 
-    fun toContestDetail(dto: ContestTdocDto): ContestDetail {
-        val contest = toContest(dto)
+    fun toContest(dto: ContestTdocDto, myEndAt: String? = null): Contest = Contest(
+        id = dto.id,
+        docId = dto.docId,
+        title = dto.title.ifBlank { "未命名竞赛" },
+        rule = dto.rule,
+        beginAt = dto.beginAt,
+        endAt = dto.endAt,
+        attend = dto.attend,
+        rated = dto.rated,
+        myEndAt = myEndAt,
+    )
+
+    fun toContestDetail(
+        dto: ContestTdocDto,
+        tsStartAt: String? = null,
+        tsEndAt: String? = null,
+    ): ContestDetail {
+        // 个人截止：tsdoc.endAt 与 startAt+duration 取更早者（对齐 isOngoing，见 Phase 注释）
+        val myEndAt = Phase.personalEndAtIso(tsStartAt, tsEndAt, dto.durationHours)
+        val contest = toContest(dto, myEndAt)
         val docIds = dto.pids.mapNotNull { it.toIntOrNull() }
         return ContestDetail(
             contest = contest,
@@ -239,12 +258,20 @@ object Mappers {
      * 作业题目列表。pdict 的键序不可靠，按 tdoc.pids 的顺序重排并打上字母标号；
      * pdict 缺失（进行中未认领）时返回空列表，UI 据此显示「认领后可见」。
      */
-    fun toHomeworkDetail(dto: HomeworkTdocDto, claimed: Boolean?, titles: Map<Int, String>): HomeworkDetail {
+    fun toHomeworkDetail(
+        dto: HomeworkTdocDto,
+        claimed: Boolean?,
+        titles: Map<Int, String>,
+        tsStartAt: String? = null,
+        tsEndAt: String? = null,
+    ): HomeworkDetail {
         val docIds = dto.pids.mapNotNull { it.toIntOrNull() }
         // pids 里没有但 pdict 里有的（理论不该出现）追加在尾部，宁可多显示
         val extra = titles.keys.filterNot { it in docIds }
+        // 作业 tdoc 无 duration 字段，个人截止只看 tsdoc.endAt（durationHours 传 0）
+        val myEndAt = Phase.personalEndAtIso(tsStartAt, tsEndAt, 0)
         return HomeworkDetail(
-            homework = toHomework(dto),
+            homework = toHomework(dto).copy(myEndAt = myEndAt),
             statement = statement(dto.content),
             claimed = claimed,
             problems = toLabeledProblems(docIds + extra, titles),

@@ -448,6 +448,7 @@ fun AppNavHost(appVm: AppViewModel) {
                     },
                     onErrorShown = vm::consumeError,
                     onDraftRestoredShown = vm::consumeDraftRestored,
+                    onPracticeNoticeShown = vm::consumePracticeNotice,
                     onToggleStatement = vm::toggleStatement,
                     onExpandStatement = vm::expandStatement,
                     onCollapseStatement = vm::collapseStatement,
